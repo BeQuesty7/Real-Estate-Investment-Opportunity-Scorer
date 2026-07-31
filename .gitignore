@@ -1,0 +1,21 @@
+# Data files
+data/etl-main/etl/input_data.zip
+data/etl-main/etl/input_data/Dataset.csv
+data/etl-main/etl/input_data/cleaned_house_data.csv
+data/raw/
+data/processed/feature_engineered.csv
+
+data/processed/scored_properties.csv
+
+# Large CSV files
+*.csv
+
+# Model files
+*.pkl
+
+# Python cache
+__pycache__/
+
+# Virtual environment
+.pytest_cache
+.venv
