@@ -11,7 +11,7 @@ data/processed/scored_properties.csv
 *.csv
 
 # Model files
-*.pkl
+#*.pkl
 
 # Python cache
 __pycache__/
