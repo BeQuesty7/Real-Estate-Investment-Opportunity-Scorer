@@ -20,13 +20,13 @@ def property_form():
 
         location = st.selectbox(
             "Location",
-            [           
+            [
                 'San Francisco', 
                 'New York', 
                 'Los Angeles', 
                 'Boston', 
                 'Chicago',
-                'Seattle', 
+                'Seattle',
                 'Miami', 
                 'Denver', 
                 'Houston', 
@@ -37,30 +37,28 @@ def property_form():
         property_type = st.selectbox(
             "Property Type",
             [
-                "Apartment",
-                "Villa",
-                "House",
-                "Studio",
-                "Penthouse",
+                "Apartment", 
+                "Bungalow", 
+                "Condo", 
+                "Farmhouse", 
+                "Penthouse", 
+                "Villa"
             ],
         )
 
         condition = st.selectbox(
             "Condition",
             [
-                "Excellent",
-                "Good",
-                "Average",
-                "Needs Renovation",
+                "New", "Old", "Renovated"
             ],
         )
 
         kitchen_type = st.selectbox(
             "Kitchen Type",
             [
-                "Modular",
-                "Open",
-                "Traditional",
+                "Modular", 
+                "Normal", 
+                "Semi Modular"
             ],
         )
 
@@ -78,10 +76,10 @@ def property_form():
         view = st.selectbox(
             "View",
             [
-                "Location",
-                "Garden",
-                "Pool",
-                "Road",
+                "City View", 
+                "Park Facing", 
+                "Sea Facing", 
+                "Unknown"
             ],
         )
 
@@ -193,13 +191,16 @@ def property_form():
         elevator = st.checkbox("Elevator")
         gym = st.checkbox("Gym")
         swimming_pool = st.checkbox("Swimming Pool")
+        air_conditioning = st.checkbox("Air Conditioning")
 
     with c3:
         wifi = st.checkbox("WiFi")
+        heating = st.checkbox("Heating")     
+        balcony = st.checkbox("Balcony")
 
     return {
         "Location": location,
-        
+        "City": location,
         "Price": price,
         "Property_Type": property_type,
         "Condition": condition,
@@ -226,4 +227,7 @@ def property_form():
         "Parking": int(parking),
         "Swimming_Pool": int(swimming_pool),
         "WiFi": int(wifi),
+        "Air_Conditioning": int(air_conditioning),   
+        "Heating": int(heating),                     
+        "Balcony": int(balcony),
     }

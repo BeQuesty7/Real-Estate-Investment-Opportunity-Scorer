@@ -482,9 +482,9 @@ class OpportunityScorer:
 
         logger.info("Preparing model features...")
 
-        # Convert raw input if required
         
-        # df = FeatureManager.prepare_prediction_data(df)
+        
+        
         
         
         # Hedonic Features
@@ -634,7 +634,7 @@ class OpportunityScorer:
 
         )
 
-        X_clf, _, _= FeatureManager.prepare_classifier_data(
+        X_clf, _ = FeatureManager.prepare_classifier_data(
 
             df
 
@@ -707,8 +707,10 @@ class OpportunityScorer:
         logger.info("=" * 70)
         logger.info("Running Complete Opportunity Scoring")
         logger.info("=" * 70)
-        #original_df= df.copy(deep=True)
+        # original_df= df.copy(deep=True)
         df= FeatureManager.prepare_prediction_data(df)
+
+
 
         #######################################################
         # LOAD MODELS
@@ -770,7 +772,6 @@ class OpportunityScorer:
         # logger.info("Scoring Completed Successfully")
 
         # return dashboard_df
-
 
     ##########################################################
     # SCORE SINGLE PROPERTY

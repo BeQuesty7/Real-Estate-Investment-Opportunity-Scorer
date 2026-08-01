@@ -1,94 +1,32 @@
-# ==========================================
-# REIOS Dashboard Constants
-# ==========================================
-
-# FastAPI URL
 BASE_API_URL = "http://127.0.0.1:8000"
 
-# Dashboard Title
-APP_TITLE = "🏠 Real Estate Investment Opportunity Scoring System"
+APP_TITLE = "REIOS Dashboard"
+APP_SUBTITLE = "Real Estate Investment Opportunity Scorer"
 
-APP_SUBTITLE = "AI-Powered Property Investment Dashboard"
+# Real tier names from the trained classifier — NOT renamed to
+# "Strong Buy / Buy / Hold / Avoid" to avoid implying the model
+# outputs something it doesn't. Colors chosen to mirror that
+# green -> red spectrum from best to worst.
+TIER_COLORS = {
+    "Excellent": "#16A34A",  # green
+    "Good": "#F59E0B",       # amber
+    "Fair": "#3B82F6",       # blue
+    "Low": "#DC2626",        # red
+}
+TIER_ORDER = ["Excellent", "Good", "Fair", "Low"]
 
-# Currency
-CURRENCY = "₹"
+RISK_COLORS = {
+    "Low": "#16A34A",
+    "Medium": "#F59E0B",
+    "High": "#DC2626",
+}
 
-# Default City
-DEFAULT_CITY = "Bangalore"
-
-# Risk Levels
-RISK_LEVELS = [
-    "Low",
-    "Medium",
-    "High",
+PROPERTY_TYPES = ["Apartment", "Bungalow", "Condo", "Farmhouse", "Penthouse", "Villa"]
+CONDITIONS = ["New", "Old", "Renovated"]
+KITCHEN_TYPES = ["Modular", "Normal", "Semi Modular"]
+VIEW_TYPES = ["City View", "Park Facing", "Sea Facing", "Unknown"]
+FURNISHING_STATUS = ["Fully Furnished", "Semi Furnished", "Unfurnished"]
+LOCATIONS = [
+    "Boston", "Chicago", "Denver", "Houston", "Los Angeles",
+    "Miami", "New York", "Phoenix", "San Francisco", "Seattle",
 ]
-
-# Property Types
-PROPERTY_TYPES = [
-    "Apartment",
-    "Villa",
-    "House",
-    "Studio",
-    "Penthouse",
-]
-
-# Property Conditions
-PROPERTY_CONDITIONS = [
-    "Excellent",
-    "Good",
-    "Average",
-    "Needs Renovation",
-]
-
-# Kitchen Types
-KITCHEN_TYPES = [
-    "Modular",
-    "Open",
-    "Traditional",
-]
-
-# Furnishing Status
-FURNISHING_STATUS = [
-    "Fully Furnished",
-    "Semi Furnished",
-    "Unfurnished",
-]
-
-# View Types
-VIEW_TYPES = [
-    "Location",
-    "Garden",
-    "Pool",
-    "Road",
-]
-
-# Default Slider Values
-PRICE_MIN = 0
-PRICE_MAX = 50000000
-
-SCORE_MIN = 0
-SCORE_MAX = 100
-
-ROOM_MIN = 1
-ROOM_MAX = 10
-
-BATHROOM_MIN = 1
-BATHROOM_MAX = 10
-
-# Dashboard Colors
-PRIMARY_COLOR = "#2563EB"
-
-SUCCESS_COLOR = "#16A34A"
-
-WARNING_COLOR = "#F59E0B"
-
-DANGER_COLOR = "#DC2626"
-
-BACKGROUND_COLOR = "#FFFFFF"
-
-CARD_BACKGROUND = "#F8FAFC"
-
-TEXT_COLOR = "#111827"
-
-# Chart Height
-CHART_HEIGHT = 400

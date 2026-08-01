@@ -1,153 +1,117 @@
 import streamlit as st
+import pandas as pd
 import plotly.express as px
 
+from utils.constants import TIER_COLORS, TIER_ORDER, RISK_COLORS
 
-# --------------------------------------------------------
-# Price Distribution Histogram
-# --------------------------------------------------------
-def plot_price_distribution(df):
 
-    if "Price" not in df.columns:
-        st.warning("Price column not found.")
+def plot_tier_donut(summary):
+    """Main donut — matches the reference image's structure, using
+    the model's real tier names (Excellent/Good/Fair/Low) instead of
+    invented labels the model doesn't actually output."""
+    tier_counts = summary.get("tier_counts", {}) if summary else {}
+    if not tier_counts:
+        st.warning("No tier data available.")
         return
 
-    fig = px.histogram(
-        df,
-        x="Price",
-        nbins=25,
-        title="Property Price Distribution",
-        template="plotly_white",
+    labels = [t for t in TIER_ORDER if t in tier_counts]
+    values = [tier_counts[t] for t in labels]
+    colors = [TIER_COLORS[t] for t in labels]
+
+    fig = px.pie(
+        names=labels,
+        values=values,
+        hole=0.55,
+        color=labels,
+        color_discrete_map=TIER_COLORS,
     )
-
-    fig.update_layout(height=400)
-
+    fig.update_traces(textinfo="label+percent")
+    fig.update_layout(height=380, showlegend=True, margin=dict(t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
 
-# --------------------------------------------------------
-# Opportunity Score Histogram
-# --------------------------------------------------------
-def plot_score_histogram(df):
-
-    if "Opportunity_Score" not in df.columns:
-        st.warning("Opportunity Score column not found.")
-        return
-
-    fig = px.histogram(
-        df,
-        x="Opportunity_Score",
-        nbins=20,
-        title="Opportunity Score Distribution",
-        template="plotly_white",
-    )
-
-    fig.update_layout(height=400)
-
-    st.plotly_chart(fig, use_container_width=True)
-
-
-# --------------------------------------------------------
-# Risk Level Pie Chart
-# --------------------------------------------------------
-def plot_risk_pie(df):
-
-    if "Risk_Level" not in df.columns:
-        st.warning("Risk Level column not found.")
+def plot_risk_donut(df):
+    if "Risk_Level" not in df.columns or df.empty:
+        st.warning("Risk Level data not available.")
         return
 
     counts = df["Risk_Level"].value_counts().reset_index()
     counts.columns = ["Risk_Level", "Count"]
 
     fig = px.pie(
-        counts,
-        names="Risk_Level",
-        values="Count",
-        title="Risk Level Distribution",
-        hole=0.45,
-        template="plotly_white",
+        counts, names="Risk_Level", values="Count", hole=0.55,
+        color="Risk_Level", color_discrete_map=RISK_COLORS,
     )
-
-    fig.update_layout(height=420)
-
+    fig.update_traces(textinfo="label+percent")
+    fig.update_layout(height=340, margin=dict(t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
 
-# --------------------------------------------------------
-# City-wise Properties
-# --------------------------------------------------------
-def plot_location_distribution(df):
-
-    if "Location" not in df.columns:
-        st.warning("Location column not found.")
+def plot_properties_by_city(summary):
+    city_counts = summary.get("properties_by_city", {}) if summary else {}
+    if not city_counts:
+        st.warning("City data not available.")
         return
 
-    location = (
-        df.groupby("Location")
-        .size()
-        .reset_index(name="Properties")
-    )
+    data = pd.DataFrame(list(city_counts.items()), columns=["City", "Properties"])
+    data = data.sort_values("Properties", ascending=True)
 
-    fig = px.bar(
-        location,
-        x="Location",
-        y="Properties",
-        title="Properties by Location",
-        template="plotly_white",
-    )
-
-    fig.update_layout(height=420)
-
+    fig = px.bar(data, x="Properties", y="City", orientation="h", template="plotly_white")
+    fig.update_layout(height=380, margin=dict(t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
 
-# --------------------------------------------------------
-# Opportunity Score by City
-# --------------------------------------------------------
-def plot_opportunity_bar(df):
-
-    if "Location" not in df.columns:
+def plot_actual_vs_predicted(df):
+    if "Price" not in df.columns or "predicted_price" not in df.columns or df.empty:
+        st.warning("Price data not available.")
         return
 
-    if "Opportunity_Score" not in df.columns:
-        return
-
-    location = (
-        df.groupby("Location")["Opportunity_Score"]
-        .mean()
-        .reset_index()
-    )
-
-    fig = px.bar(
-        location,
-        x="Location",
-        y="Opportunity_Score",
-        title="Average Opportunity Score by City",
+    fig = px.scatter(
+        df, x="Price", y="predicted_price", opacity=0.4,
         template="plotly_white",
+        labels={"Price": "Actual Price (₹)", "predicted_price": "Predicted Price (₹)"},
     )
-
-    fig.update_layout(height=420)
-
+    max_val = max(df["Price"].max(), df["predicted_price"].max())
+    fig.add_shape(type="line", x0=0, y0=0, x1=max_val, y1=max_val, line=dict(color="green", dash="dash"))
+    fig.update_layout(height=380, margin=dict(t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
 
-# --------------------------------------------------------
-# Property Map
-# --------------------------------------------------------
+def plot_score_histogram(df):
+    if "Opportunity_Score" not in df.columns or df.empty:
+        st.warning("Opportunity Score data not available.")
+        return
+
+    fig = px.histogram(df, x="Opportunity_Score", nbins=25, template="plotly_white")
+    fig.update_layout(height=340, margin=dict(t=10, b=10))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def plot_avg_score_by_property_type(summary):
+    scores = summary.get("avg_score_by_property_type", {}) if summary else {}
+    if not scores:
+        st.warning("Property type data not available.")
+        return
+
+    data = pd.DataFrame(list(scores.items()), columns=["Property_Type", "Avg_Score"])
+    data = data.sort_values("Avg_Score", ascending=True)
+
+    fig = px.bar(data, x="Avg_Score", y="Property_Type", orientation="h", template="plotly_white")
+    fig.update_layout(height=340, margin=dict(t=10, b=10))
+    st.plotly_chart(fig, use_container_width=True)
+
+
 def plot_property_map(df):
-
-    if "Latitude" not in df.columns:
-        st.warning("Latitude column not found.")
+    if "Latitude" not in df.columns or "Longitude" not in df.columns or df.empty:
+        st.warning("Location data not available.")
         return
 
-    if "Longitude" not in df.columns:
-        st.warning("Longitude column not found.")
-        return
-
-    st.map(
-        df[
-            [
-                "Latitude",
-                "Longitude",
-            ]
-        ]
+    fig = px.scatter_mapbox(
+        df, lat="Latitude", lon="Longitude",
+        color="Tier" if "Tier" in df.columns else None,
+        color_discrete_map=TIER_COLORS,
+        hover_data=["Price", "opportunity_score"] if "opportunity_score" in df.columns else None,
+        zoom=3, height=420,
     )
+    fig.update_layout(mapbox_style="open-street-map", margin=dict(t=10, b=10, l=0, r=0))
+    st.plotly_chart(fig, use_container_width=True)

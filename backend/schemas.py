@@ -15,7 +15,7 @@ class PropertyInput(BaseModel):
 
     # Basic
     Location: str
-    # City: str
+    City: str
     Price: float
 
     # Property
@@ -58,6 +58,9 @@ class PropertyInput(BaseModel):
     Parking: int
     Swimming_Pool: int
     WiFi: int
+    Air_Conditioning: int
+    Heating: int
+    Balcony: int
 
 
 class PredictionResponse(BaseModel):
@@ -66,9 +69,6 @@ class PredictionResponse(BaseModel):
     """
 
     predicted_price: float
-    residual_pct: float
-    anomaly_score: float
-    anomaly_label: int
     opportunity_score: float
+    anomaly_score: float
     tier: str
-    percentile: float

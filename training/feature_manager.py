@@ -136,6 +136,8 @@ class FeatureManager:
 
         "WiFi",
 
+        #"Air_Conditioning",
+
     ]
 
     ###########################################################
@@ -665,12 +667,14 @@ class FeatureManager:
 
         )
 
+        # y = df[target_column]
         if target_column in df.columns:
             y = df[target_column]
         else:
             y = None
-            
-        return X, y, features
+
+
+        return X, features
 
 
     ###########################################################
@@ -831,9 +835,7 @@ class FeatureManager:
         #         },
         #         inplace=True
         #     )
-        
-        
-        
+
         ##########################################################
         # Derived Features
         ##########################################################
@@ -877,9 +879,11 @@ class FeatureManager:
 
             "Parking",
 
-            "Swimming_Pool",
+            "Swimming Pool",
 
-            "WiFi"
+            "WiFi",
+
+            #"Air_Conditioning",
 
         ]
         
@@ -967,7 +971,11 @@ class FeatureManager:
 
             "Location",
 
-            "Furnishing_Status"
+            "Furnishing_Status",
+
+            "Heating", 
+
+            "Balcony",
 
         ]
 
