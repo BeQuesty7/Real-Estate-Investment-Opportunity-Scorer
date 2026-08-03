@@ -25,16 +25,15 @@ def load_properties(limit: int = 3000):
     if "tier" in df.columns:
         df["Tier"] = df["tier"]
 
-    if "anomaly_score" in df.columns:
-        # Real risk from anomaly_score, kept separate from investment tier.
-        # Bin edges are a starting estimate — tune against your actual
-        # anomaly_score distribution (df["anomaly_score"].describe())
-        # if the Low/Medium/High split looks skewed.
-        df["Risk_Level"] = pd.cut(
-            df["anomaly_score"],
-            bins=[-float("inf"), -0.05, 0.02, float("inf")],
-            labels=["High", "Medium", "Low"],
-        )
+    if "anomaly_score" in df.columns and "anomaly_label" in df.columns:
+        normal_median = df.loc[df["anomaly_label"] == 1, "anomaly_score"].median()
+
+        def _risk(row):
+            if row["anomaly_label"] == -1:
+                return "High"
+            return "Low" if row["anomaly_score"] >= normal_median else "Medium"
+
+        df["Risk_Level"] = df.apply(_risk, axis=1)
 
     return df
 

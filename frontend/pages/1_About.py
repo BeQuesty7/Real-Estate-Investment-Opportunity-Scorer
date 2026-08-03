@@ -1,47 +1,44 @@
 import streamlit as st
 
-st.set_page_config(page_title="About", page_icon="ℹ️", layout="wide")
+from utils.constants import PROPERTY_TYPES, CONDITIONS, LOCATIONS
 
-st.title("ℹ️ About REIOS")
-st.markdown("---")
 
-st.markdown("""
-## 🏠 Real Estate Investment Opportunity Scoring System (REIOS)
+def show_sidebar(price_bounds=(0, 50000000)):
 
-REIOS helps investors evaluate real estate opportunities using
-machine learning: predicting property prices, detecting anomalies,
-scoring investment opportunity, and classifying investment tiers.
-""")
+    st.sidebar.markdown("### 🔍 Filters")
 
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("🚀 Features")
-    st.markdown("""
-- Property Price Prediction
-- Opportunity Score & Investment Tier
-- Anomaly Detection
-- Interactive Dashboard with Filters
-- Live Property Map
-""")
-with col2:
-    st.subheader("🛠 Technologies")
-    st.markdown("""
-**Frontend:** Streamlit, Plotly
-**Backend:** FastAPI
-**ML:** LightGBM, Isolation Forest, scikit-learn
-""")
+    if st.sidebar.button("Clear All"):
+        st.cache_data.clear()
+        st.rerun()
 
-st.markdown("---")
-st.subheader("🏗 System Architecture")
-st.code("""
-User -> Streamlit Dashboard -> FastAPI -> OpportunityScorer
-                                              |
-                     Hedonic Model / Isolation Forest / Tier Classifier
-                                              |
-                                     Prediction Result
-""")
+    location = st.sidebar.selectbox("City", ["All"] + LOCATIONS)
 
-st.markdown("---")
-st.subheader("👩‍💻 Developer")
-st.success("Kamini Kharat — AI & Data Analytics Engineer")
-st.info("Version 2.0 | REIOS Dashboard")
+    property_type = st.sidebar.selectbox("Property Type", ["All"] + PROPERTY_TYPES)
+
+    condition = st.sidebar.selectbox("Condition", ["All"] + CONDITIONS)
+
+    bedrooms = st.sidebar.slider("Bedrooms", 1, 10, (1, 10))
+
+    bathrooms = st.sidebar.slider("Bathrooms", 1, 10, (1, 10))
+
+    price_range = st.sidebar.slider(
+        "Price Range (₹)",
+        min_value=int(price_bounds[0]),
+        max_value=int(price_bounds[1]),
+        value=(int(price_bounds[0]), int(price_bounds[1])),
+    )
+
+    score = st.sidebar.slider("Opportunity Score", 0, 100, (0, 100))
+
+    apply_clicked = st.sidebar.button("🔍 Apply Filters", use_container_width=True)
+
+    return {
+        "location": location,
+        "property_type": property_type,
+        "condition": condition,
+        "price_range": price_range,
+        "score": score,
+        "bedrooms": bedrooms,
+        "bathrooms": bathrooms,
+        "apply_clicked": apply_clicked,
+    }

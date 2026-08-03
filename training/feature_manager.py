@@ -132,7 +132,7 @@ class FeatureManager:
 
         "Parking",
 
-        "Swimming Pool",
+        "Swimming_Pool",
 
         "WiFi",
 
@@ -157,6 +157,10 @@ class FeatureManager:
         "View_",
 
         "Furnishing_Status_",
+        
+        "Heating_",
+
+        "Balcony_",
 
     ]
 
@@ -384,13 +388,9 @@ class FeatureManager:
 
             "Crimerate",
 
-            "Location_enc",
-
-            "Property_Type_enc",
-
         ]
 
-        return [
+        features = [
 
             feature
 
@@ -399,6 +399,12 @@ class FeatureManager:
             if feature in df.columns
 
         ]
+
+        # automatically include all one-hot columns
+
+        features += cls.get_ohe_features(df)
+
+        return list(dict.fromkeys(features))
 
 
     ###########################################################
@@ -550,10 +556,11 @@ class FeatureManager:
         features
         """
 
-        if "size_ratio" not in df.columns:
+        #if "size_ratio" not in df.columns:
 
+            #df = cls.prepare_prediction_data(df)
+        if "size_ratio" not in df.columns and "loc_price_median" not in df.columns:
             df = cls.prepare_prediction_data(df)
-        
         
         
         features = cls.get_hedonic_features(df)
@@ -572,7 +579,10 @@ class FeatureManager:
 
         )
 
-        y = df[cls.TARGET]
+        if cls.TARGET in df.columns:
+            y = df[cls.TARGET]
+        else:
+            y = None
 
         return X, y, features
 
@@ -590,9 +600,13 @@ class FeatureManager:
         Prepare Isolation Forest dataset.
         """
 
-        if "size_ratio" not in df.columns:
+        #if "size_ratio" not in df.columns:
 
+           # df = cls.prepare_prediction_data(df)
+        
+        if "size_ratio" not in df.columns and "loc_price_median" not in df.columns:
             df = cls.prepare_prediction_data(df)
+        
         
         
         features = cls.get_anomaly_features(df)
@@ -627,29 +641,11 @@ class FeatureManager:
         """
         Prepare classifier dataset.
 
-        Returns
-        -------
-
-        X
-
-        y
-
-        features
         """
 
-        # if target_column not in df.columns:
-
-        #     raise ValueError(
-
-        #         f"{target_column} not found."
-
-        #     )
-
-        if "size_ratio" not in df.columns:
-
+        
+        if "size_ratio" not in df.columns and "loc_price_median" not in df.columns:
             df = cls.prepare_prediction_data(df)
-        
-        
         
         features = cls.get_classifier_features(df)
 
@@ -674,7 +670,7 @@ class FeatureManager:
             y = None
 
 
-        return X, features
+        return X, y, features
 
 
     ###########################################################
@@ -818,6 +814,14 @@ class FeatureManager:
         metadata["training_modes"] = joblib.load(
             FEATURE_METADATA_DIR / "training_modes.pkl"
         )
+        
+        metadata["normalization_stats"] = joblib.load(
+
+            FEATURE_METADATA_DIR/
+
+            "normalization_stats.pkl"
+
+        )
 
         return metadata
     #FOR BACKEND
@@ -827,7 +831,7 @@ class FeatureManager:
         meta = FeatureManager.load_feature_metadata()
 
         df = df.copy()
-
+        raw_df = df.copy()
         # if "Swimming Pool" in df.columns:
         #     df.rename(
         #         columns={
@@ -879,7 +883,7 @@ class FeatureManager:
 
             "Parking",
 
-            "Swimming Pool",
+            "Swimming_Pool",
 
             "WiFi",
 
@@ -914,20 +918,58 @@ class FeatureManager:
         global_loc = np.mean(
             list(meta["location_price"].values())
         )
+        # Reconstruct Location from one-hot encoded columns
+        # location_cols = [
+        #     col for col in df.columns 
+        #     if col.startswith("Location_")
+        # ]
+
+        # if not location_cols:
+        #     raise ValueError("No Location columns found.")
+
+        # df["Location"] = (
+        #     df[location_cols]
+        #     .idxmax(axis=1)
+        #     .str.replace("Location_", "", regex=False)
+        # )
+            
+        # if df[location_cols].sum(axis=1).eq(0).any():
+        #     raise ValueError("No Location columns found in dataframe")
+        if "Location" not in df.columns:
+            raise ValueError("Location column missing.")
 
         df["loc_price_median"] = (
-
             df["Location"]
-
             .map(meta["location_price"])
-
             .fillna(global_loc)
-
         )
 
         global_prop = np.mean(
             list(meta["property_price"].values())
         )
+
+        # Reconstruct Property_Type from one-hot encoded columns
+        # property_cols = [
+        #     col for col in df.columns
+        #     if col.startswith("Property_Type_")
+        # ]
+
+       
+        # if not property_cols:
+        #     raise ValueError("No Property_Type columns found.")
+
+        # df["Property_Type"] = (
+        #     df[property_cols]
+        #     .idxmax(axis=1)
+        #     .str.replace("Property_Type_", "", regex=False)
+        # )
+        if "Property_Type" not in df.columns:
+            raise ValueError("Property_Type column missing.")
+        
+        # if df[location_cols].sum(axis=1).eq(0).any():
+        #             raise ValueError("No Location columns found in dataframe")
+           
+        
 
         df["prop_type_price_median"] = (
 
@@ -973,32 +1015,49 @@ class FeatureManager:
 
             "Furnishing_Status",
 
-            "Heating", 
-
-            "Balcony",
 
         ]
 
-        df = pd.get_dummies(
+        existing_columns = [
+            col for col in categorical
+            if col in df.columns
+        ]
 
-            df,
+        if existing_columns:
+            df = pd.get_dummies(
+                df,
+                columns=existing_columns,
+                drop_first=False
+            )
 
-            columns=categorical,
-
-            dtype=int
-
-        )
-
-                ##########################################################
+        ##########################################################
         # Create Engineered Feature Matrix
         ##########################################################
 
         engineered = df.copy()
+        # Normalize feature names
+        engineered.columns = (
+            engineered.columns
+            .str.replace(" ", "_")
+        )
+
+
+        # Remove duplicate columns
+        engineered = engineered.loc[
+            :,
+            ~engineered.columns.duplicated()
+        ]
+
+
+
 
         ##########################################################
         # Add Missing Columns
         ##########################################################
 
+        
+        
+        
         for col in meta["feature_order"]:
 
             if col not in engineered.columns:
@@ -1026,6 +1085,20 @@ class FeatureManager:
         ##########################################################
         # Return Engineered Features
         ##########################################################
+
+        # Restore required business columns
+
+        for col in [
+            "Location",
+            "Property_Type",
+            "Crimerate",
+            "accessibility",
+            "loc_price_median",
+            "prop_type_price_median"
+        ]:
+            if col in df.columns:
+                engineered[col] = df[col]
+
 
         return engineered
 

@@ -12,6 +12,8 @@ TIER_COLORS = {
     "Good": "#F59E0B",       # amber
     "Fair": "#3B82F6",       # blue
     "Low": "#DC2626",        # red
+    "Total Properties": "#6366F1",
+    "Average Score": "#8B5CF6",
 }
 TIER_ORDER = ["Excellent", "Good", "Fair", "Low"]
 

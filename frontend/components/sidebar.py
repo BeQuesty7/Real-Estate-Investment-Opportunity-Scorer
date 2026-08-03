@@ -22,9 +22,11 @@ def show_sidebar(price_bounds=(0, 50000000)):
     bathrooms = st.sidebar.slider("Bathrooms", 1, 10, (1, 10))
 
     price_range = st.sidebar.slider(
-        "Price Range (₹)",
+        "Price Range ($)",
         min_value=int(price_bounds[0]),
-        max_value=int(price_bounds[1]),
+        max_value = int(price_bounds[1] if price_bounds[1] is not None else 50000000),
+        
+        
         value=(int(price_bounds[0]), int(price_bounds[1])),
     )
 

@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 from utils.constants import TIER_COLORS, TIER_ORDER, RISK_COLORS
-
+import components.charts
 
 def plot_tier_donut(summary):
     """Main donut — matches the reference image's structure, using
@@ -66,6 +66,8 @@ def plot_actual_vs_predicted(df):
         st.warning("Price data not available.")
         return
 
+
+
     fig = px.scatter(
         df, x="Price", y="predicted_price", opacity=0.4,
         template="plotly_white",
@@ -101,11 +103,16 @@ def plot_avg_score_by_property_type(summary):
     st.plotly_chart(fig, use_container_width=True)
 
 
+# components/charts.py — plot_property_map()
+
 def plot_property_map(df):
     if "Latitude" not in df.columns or "Longitude" not in df.columns or df.empty:
         st.warning("Location data not available.")
         return
 
+    center_lat = df["Latitude"].mean()
+    center_lon = df["Longitude"].mean()
+    
     fig = px.scatter_mapbox(
         df, lat="Latitude", lon="Longitude",
         color="Tier" if "Tier" in df.columns else None,
@@ -114,4 +121,61 @@ def plot_property_map(df):
         zoom=3, height=420,
     )
     fig.update_layout(mapbox_style="open-street-map", margin=dict(t=10, b=10, l=0, r=0))
-    st.plotly_chart(fig, use_container_width=True)
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config={"scrollZoom": True},   # ADDED — enables mouse-wheel/pinch zoom on the map
+    )
+
+# def render_tier_card(label, count, color):
+#     """Colored KPI card — light background tint of `color`, bold text in `color`."""
+    
+#     st.markdown(
+#         f"""
+#         <div style="
+#             background-color:{color}22;
+#             border-left:5px solid {color};
+#             border-radius:10px;
+#             padding:14px 16px;
+#             text-align:center;
+#         ">
+#             <div style="font-size:14px; color:{color}; font-weight:600;">{label}</div>
+#             <div style="font-size:26px; color:{color}; font-weight:bold;">{count:,}</div>
+#         </div>
+#         """,
+#         unsafe_allow_html=True,
+#     )
+
+# 
+def render_tier_card(label, value, color):
+    display_value = f"{value:,}" if isinstance(value, (int, float)) else value
+
+    st.markdown(
+        f"""
+        <div style="
+            background-color:{color}22;
+            border-left:5px solid {color};
+            border-radius:10px;
+            padding:12px 10px;
+            text-align:center;
+            overflow:hidden;
+        ">
+            <div style="
+                font-size:13px;
+                color:{color};
+                font-weight:600;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow:ellipsis;
+            ">{label}</div>
+            <div style="
+                font-size:22px;
+                color:{color};
+                font-weight:bold;
+                white-space:nowrap;
+            ">{display_value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )

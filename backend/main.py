@@ -1,6 +1,20 @@
+"""
+=============================================================
+REIOS - FastAPI Application
+=============================================================
+
+Provides REST API endpoints for:
+
+1. Health Check
+2. Property Prediction
+
+=============================================================
+"""
 import pandas as pd
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
+
+
 
 from backend.schemas import (
     PropertyInput,
@@ -11,15 +25,21 @@ from backend.predictor import (
     predict_property,
 )
 
+
 ##############################################################
 # CREATE FASTAPI APP
 ##############################################################
 
 app = FastAPI(
+
     title="REIOS API",
+
     description="Real Estate Investment Opportunity Scorer API",
+
     version="1.0.0",
+
 )
+
 
 ##############################################################
 # ROOT ENDPOINT
@@ -28,71 +48,69 @@ app = FastAPI(
 @app.get("/")
 def home():
     """
-    Health Check Endpoint
+    Health check endpoint.
     """
 
     return {
+
         "message": "REIOS API is running."
+
     }
+
 
 ##############################################################
 # PREDICTION ENDPOINT
 ##############################################################
 
 @app.post(
+
     "/predict",
+
     response_model=PredictionResponse,
+
 )
+
 def predict(
+
     property_data: PropertyInput,
+
 ):
     """
     Predict investment opportunity for a property.
     """
 
     prediction = predict_property(
+
         property_data.model_dump()
+
     )
 
-    return PredictionResponse(**prediction)
+    return PredictionResponse(
 
-@app.get("/dashboard")
-def dashboard():
-    try:
-        project_root = Path(__file__).resolve().parent.parent
-        data_file = project_root / "data" / "processed" / "scored_properties.csv"
+        predicted_price=prediction["predicted_price"],
 
-        if not data_file.exists():
-            raise HTTPException(status_code=404, detail=f"Dataset not found: {data_file}")
+        residual_pct=prediction["residual_pct"],
 
-        # Peek at header only, to build column groups dynamically
-        header_cols = pd.read_csv(data_file, nrows=0).columns.tolist()
+        anomaly_score=prediction["anomaly_score"],
 
-        LOCATION_COLS = [c for c in header_cols if c.startswith("Location_")]
-        PROPERTY_TYPE_COLS = [c for c in header_cols if c.startswith("Property_Type_")]
-        CONDITION_COLS = [c for c in header_cols if c.startswith("Condition_")]
-        AMENITY_COLS = [
-            "Bar", "Elevator", "Garden", "Gym", "Parking",
-            "Swimming Pool", "WiFi",
-        ]
+        anomaly_label=prediction["anomaly_label"],
 
-        usecols = [
-            "Price", "Floor_Area", "Num_rooms", "Num_bathrooms",
-            "Latitude", "Longitude",
-            "predicted_price", "residual_pct", "anomaly_score",
-            "opportunity_score", "tier", "percentile",
-        ] + LOCATION_COLS + PROPERTY_TYPE_COLS + CONDITION_COLS + AMENITY_COLS
+        opportunity_score=prediction["opportunity_score"],
 
-        df = pd.read_csv(data_file, usecols=usecols)
-        df = df.fillna("")
-        df = df.head(100)
+        tier=prediction["tier"],
 
-        return df.to_dict(orient="records")
+        percentile=prediction["percentile"],
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    )
 
-    
+# ============================================================
+# ADD TO backend/main.py — paste below your existing endpoints.
+# Nothing above this line changes. Two new imports needed at
+# the top of main.py alongside the existing ones:
+#     from pathlib import Path
+#     import pandas as pd
+# (main.py already has both, from the existing /dashboard code)
+# ============================================================
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "processed" / "scored_properties.csv"
 
@@ -182,7 +200,7 @@ def properties(limit: int = 3000, sort_by: str = "opportunity_score"):
             "Price", "Floor_Area", "Num_rooms", "Num_bathrooms",
             "Latitude", "Longitude", "Location", "Property_Type",
             "Condition", "Furnishing_Status",
-            "predicted_price", "residual_pct", "anomaly_score",
+            "predicted_price", "residual_pct", "anomaly_score", "anomaly_label",
             "opportunity_score", "tier", "percentile",
         ]
         keep_cols = [c for c in keep_cols if c in df.columns]

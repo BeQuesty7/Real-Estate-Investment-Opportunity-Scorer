@@ -235,7 +235,7 @@ class REIOSTrainingPipeline:
 
         scorer = OpportunityScorer()
 
-        scorer.main()
+        result = scorer.run()
 
         elapsed = round(
 
@@ -246,11 +246,9 @@ class REIOSTrainingPipeline:
         )
 
         self.results["scoring"] = {
-
             "status": "SUCCESS",
-
             "time": elapsed,
-
+            "rows": len(result),
         }
 
         logger.info(
@@ -453,13 +451,13 @@ class REIOSTrainingPipeline:
     # MAIN
     ##############################################################
 
-    def main():
+def main():
 
-        pipeline = REIOSTrainingPipeline()
+    pipeline = REIOSTrainingPipeline()
 
-        pipeline.run()
+    pipeline.run()
 
 
-    if __name__ == "__main__":
+if __name__ == "__main__":
 
-        main()    
+    main()    

@@ -486,6 +486,23 @@ class AnomalyTrainer:
 
         )
 
+        import json
+
+
+        with open(
+            "models/anomaly_features.json",
+            "w"
+        ) as f:
+
+            json.dump(
+                list(self.X.columns),
+                f
+            )
+        
+        
+        
+        
+        
         logger.info(
 
             "Training Completed"

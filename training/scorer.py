@@ -125,6 +125,10 @@ class OpportunityScorer:
         self.classifier = None
 
         self.encoder = None
+        
+        self.metadata = FeatureManager.load_feature_metadata()
+        
+        self.norm_stats = self.metadata["normalization_stats"]
 
         ######################################################
         # WEIGHTS
@@ -216,7 +220,7 @@ class OpportunityScorer:
         """
         Load all trained models required for inference.
         """
-
+        import json
         logger.info("=" * 60)
         logger.info("Loading Trained Models")
         logger.info("=" * 60)
@@ -228,7 +232,11 @@ class OpportunityScorer:
         self.anomaly_model = joblib.load(
             MODEL_DIR / "iso_forest.pkl"
         )
-
+        self.anomaly_features = json.load(
+            open(
+                MODEL_DIR / "anomaly_features.json"
+            )
+        )
         if include_classifier:
 
             self.classifier = joblib.load(
@@ -250,29 +258,28 @@ class OpportunityScorer:
 
     @staticmethod
     def minmax_clip(
-        series: pd.Series,
-        lo: int = 1,
-        hi: int = 99,
-    ) -> pd.Series:
-        """
-        Robust Min-Max normalization using percentile clipping.
-        """
 
-        lo_val = np.percentile(series.dropna(), lo)
-        hi_val = np.percentile(series.dropna(), hi)
+        series,
 
-        clipped = series.clip(lo_val, hi_val)
+        p1,
 
-        rng = hi_val - lo_val
+        p99,
 
-        if rng == 0:
+    ):
 
-            return pd.Series(
-                0.5,
-                index=series.index,
-            )
+        clipped = series.clip(
 
-        return (clipped - lo_val) / rng
+            lower=p1,
+
+            upper=p99,
+
+        )
+
+        return (
+
+            clipped-p1
+
+        )/(p99-p1+1e-9)
 
 
     ##########################################################
@@ -293,9 +300,34 @@ class OpportunityScorer:
         # VALUE GAP
         #######################################################
 
+        stats = self.norm_stats
+        
+        # -------------------------------------------------------
+        # Safety: add missing normalization stats dynamically
+        # -------------------------------------------------------
+        required_stats = [
+            "residual_pct",
+            "loc_price_median",
+            "accessibility",
+            "Crimerate",
+            "anomaly_score",
+        ]
+
+
+        for col in required_stats:
+
+            if col not in stats:
+
+                raise ValueError(
+                    f"Missing normalization stats for {col}"
+                )
         df["value_gap_score"] = self.minmax_clip(
 
-            -df["residual_pct"]
+            -df["residual_pct"],
+
+            -stats["residual_pct"]["p99"],
+
+            -stats["residual_pct"]["p1"]
 
         )
 
@@ -303,9 +335,13 @@ class OpportunityScorer:
         # LOCATION GROWTH
         #######################################################
 
-        df["growth_score"] = self.minmax_clip(
+        df["growth_score"]=self.minmax_clip(
 
-            df["loc_price_median"]
+            df["loc_price_median"],
+
+            stats["loc_price_median"]["p1"],
+
+            stats["loc_price_median"]["p99"]
 
         )
 
@@ -313,9 +349,13 @@ class OpportunityScorer:
         # ACCESSIBILITY
         #######################################################
 
-        df["access_score"] = self.minmax_clip(
+        df["access_score"]=self.minmax_clip(
 
-            -df["accessibility"]
+            -df["accessibility"],
+
+            -stats["accessibility"]["p99"],
+
+            -stats["accessibility"]["p1"]
 
         )
 
@@ -323,9 +363,13 @@ class OpportunityScorer:
         # SAFETY
         #######################################################
 
-        df["safety_score"] = self.minmax_clip(
+        df["safety_score"]=self.minmax_clip(
 
-            -df["Crimerate"]
+            -df["Crimerate"],
+
+            -stats["Crimerate"]["p99"],
+
+            -stats["Crimerate"]["p1"]
 
         )
 
@@ -333,9 +377,13 @@ class OpportunityScorer:
         # ANOMALY
         #######################################################
 
-        df["anomaly_score_n"] = self.minmax_clip(
+        df["anomaly_score_n"]=self.minmax_clip(
 
-            -df["anomaly_score"]
+            -df["anomaly_score"],
+
+            -stats["anomaly_score"]["p99"],
+
+            -stats["anomaly_score"]["p1"]
 
         )
 
@@ -362,11 +410,11 @@ class OpportunityScorer:
 
             score += df[feature] * weight
 
+        total_weight = sum(self.weights.values())
+
         df["opportunity_score"] = (
-
-            score * 100
-
-        ).round(1)
+            score / total_weight * 100
+        ).clip(0, 100).round(1)
 
         return df
 
@@ -443,25 +491,11 @@ class OpportunityScorer:
 
         scores = df["opportunity_score"].values
 
-        df["percentile"] = [
-
-            round(
-
-                percentileofscore(
-
-                    scores,
-
-                    score,
-
-                ),
-
-                1,
-
-            )
-
-            for score in scores
-
-        ]
+        df["percentile"] = (
+            df["opportunity_score"]
+            .rank(pct=True)
+            *100
+        )
 
         return df
         
@@ -518,10 +552,18 @@ class OpportunityScorer:
         # Predict log price
         #######################################################
 
+        model_features = self.hedonic_model.feature_name_
+
+        # Add missing columns with zero
+        for col in model_features:
+            if col not in X_hedonic.columns:
+                X_hedonic[col] = 0
+
+        # Remove extra columns and keep training order
+        X_hedonic = X_hedonic[model_features]
+
         pred_log = self.hedonic_model.predict(
-
             X_hedonic
-
         )
 
         #######################################################
@@ -564,11 +606,27 @@ class OpportunityScorer:
 
                 df["predicted_price"]
 
-            ) * 100
+            )*100
 
         else:
 
-            df["residual_pct"] = np.nan
+            df["residual_pct"] = (
+
+                (
+
+                    df["predicted_price"]
+
+                    -
+
+                    df["loc_price_median"]
+
+                )
+
+                /
+
+                df["loc_price_median"]
+
+            )*100
 
         return df
 
@@ -587,7 +645,55 @@ class OpportunityScorer:
 
         logger.info("Predicting anomalies...")
 
+
+        #######################################################
+        # CREATE FEATURES REQUIRED BY ISOLATION FOREST
+        #######################################################
+
+        if "price_per_sqft" not in df.columns:
+
+            logger.info(
+                "Creating price_per_sqft feature"
+            )
+
+            if "price_per_sqft" not in df.columns:
+
+                if "Price" in df.columns:
+
+                    df["price_per_sqft"] = (
+                        df["Price"] /
+                        df["Floor_Area"].replace(0,1)
+                    )
+
+                elif "predicted_price" in df.columns:
+
+                    df["price_per_sqft"] = (
+                        df["predicted_price"] /
+                        df["Floor_Area"].replace(0,1)
+                    )
+
+                else:
+
+                    raise ValueError(
+                        "Cannot create price_per_sqft. "
+                        "Price or predicted_price missing."
+                    )
+
+
+        #######################################################
+        # PREPARE ANOMALY FEATURES
+        #######################################################
+
         _, X_anomaly = self.prepare_features(df)
+
+        # Ensure anomaly features match training features
+        model_features = self.anomaly_features
+
+        for col in model_features:
+            if col not in X_anomaly.columns:
+                X_anomaly[col] = 0
+
+        X_anomaly = X_anomaly[model_features]
 
         #######################################################
         # Label
@@ -612,33 +718,45 @@ class OpportunityScorer:
         df["anomaly_label"] = labels
 
         df["anomaly_score"] = scores
+        df["anomaly_feat"] = df["anomaly_score"]
+
+        # Residual feature for classifier/scoring
+        if "residual_pct" in df.columns:
+            
+            df["residual_feat"] = df["residual_pct"]
+
+        else:
+
+            df["residual_feat"] = 0
+
 
         return df
-
 
     ##########################################################
     # CLASSIFIER FEATURES
     ##########################################################
 
     def prepare_classifier_features(
-        self,
-        df: pd.DataFrame,
+    self,
+    df: pd.DataFrame,
     ):
         """
         Prepare classifier features.
         """
 
         logger.info(
-
             "Preparing classifier features..."
-
         )
 
-        X_clf, _ = FeatureManager.prepare_classifier_data(
-
+        result = FeatureManager.prepare_classifier_data(
             df
-
         )
+
+        # Handle tuple returns safely
+        if isinstance(result, tuple):
+            X_clf = result[0]
+        else:
+            X_clf = result
 
         return X_clf
 
@@ -667,6 +785,19 @@ class OpportunityScorer:
 
         )
 
+        # Ensure classifier receives exactly the training features
+        model_features = self.classifier.feature_name_
+
+        # Add any missing columns
+        for col in model_features:
+            if col not in X_clf.columns:
+                X_clf[col] = 0
+
+        # Keep only training columns in the correct order
+        X_clf = X_clf[model_features]
+        
+        
+        
         predictions = self.classifier.predict(
 
             X_clf
@@ -687,6 +818,9 @@ class OpportunityScorer:
     # SCORE ENTIRE DATAFRAME
     ##########################################################
 
+    
+    
+    
     def score_dataframe(
         self,
         df: pd.DataFrame,
@@ -695,21 +829,45 @@ class OpportunityScorer:
         """
         Complete inference pipeline.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-
-        Returns
-        -------
-        Scored dataframe.
+        Keeps original business columns and appends ML predictions.
         """
 
         logger.info("=" * 70)
         logger.info("Running Complete Opportunity Scoring")
         logger.info("=" * 70)
-        # original_df= df.copy(deep=True)
-        df= FeatureManager.prepare_prediction_data(df)
 
+        #######################################################
+        # KEEP ORIGINAL DATA
+        #######################################################
+
+        original_df = df.copy(deep=True)
+
+        #######################################################
+        # CREATE MODEL FEATURES
+        #######################################################
+
+        # API sends raw columns:
+        # Location, Property_Type, Condition, etc.
+        # Training sends feature_engineered.csv:
+        # Location_Boston, Property_Type_Apartment, etc.
+
+        if "Location" in df.columns:
+
+            logger.info(
+                "Raw property input detected. Creating features..."
+            )
+
+            feature_df = FeatureManager.prepare_prediction_data(
+                df.copy()
+            )
+
+        else:
+
+            logger.info(
+                "Feature engineered data detected. Using directly..."
+            )
+
+            feature_df = df.copy()
 
 
         #######################################################
@@ -717,61 +875,121 @@ class OpportunityScorer:
         #######################################################
 
         if self.hedonic_model is None:
+            self.load_models(
+                include_classifier=include_classifier
+            )
 
-            self.load_models(include_classifier=include_classifier)
 
         #######################################################
         # MODEL 1
         #######################################################
 
-        df = self.predict_prices(df)
+        feature_df = self.predict_prices(feature_df)
+
 
         #######################################################
         # MODEL 2
         #######################################################
 
-        df = self.predict_anomalies(df)
+        feature_df = self.predict_anomalies(feature_df)
 
         #######################################################
         # BUSINESS LOGIC
         #######################################################
 
-        df = self.calculate_factor_scores(df)
+        # Restore business columns required for scoring
+        business_cols = [
+            "Location",
+            "Property_Type",
+            "Crimerate",
+            "accessibility",
+            "loc_price_median",
+            "prop_type_price_median"
+        ]
 
-        df = self.calculate_opportunity_score(df)
+        for col in business_cols:
+            if col in original_df.columns:
+                feature_df[col] = original_df[col]
+        
+        
+        
+        
+        feature_df = self.calculate_factor_scores(feature_df)
 
-        df = self.assign_tier(df)
+        feature_df = self.calculate_opportunity_score(feature_df)
 
-        df = self.calculate_percentile(df)
+        feature_df = self.assign_tier(feature_df)
+
+        feature_df = self.calculate_percentile(feature_df)
+
 
         #######################################################
         # MODEL 3
         #######################################################
+
         if include_classifier:
-            df = self.predict_tiers(df)
 
-        logger.info("Scoring Completed Successfully")
+            feature_df = self.predict_tiers(feature_df)
 
-        return df
-        # --------------------------------------------------------
-        # Build dashboard dataframe
-        # --------------------------------------------------------
 
-        # dashboard_df = original_df.copy()
+        #######################################################
+        # MERGE RESULTS BACK
+        #######################################################
 
-        # dashboard_df["predicted_price"] = df["predicted_price"]
-        # dashboard_df["residual_pct"] = df["residual_pct"]
-        # dashboard_df["anomaly_score"] = df["anomaly_score"]
-        # dashboard_df["opportunity_score"] = df["opportunity_score"]
-        # dashboard_df["tier"] = df["tier"]
-        # dashboard_df["percentile"] = df["percentile"]
+        prediction_columns = [
 
-        # if "predicted_tier" in df.columns:
-        #     dashboard_df["predicted_tier"] = df["predicted_tier"]
+            "predicted_price",
 
-        # logger.info("Scoring Completed Successfully")
+            "residual_pct",
 
-        # return dashboard_df
+            "anomaly_score",
+
+            "anomaly_label",
+
+            "value_gap_score",
+
+            "growth_score",
+
+            "access_score",
+
+            "safety_score",
+
+            "anomaly_score_n",
+
+            "opportunity_score",
+
+            "tier",
+
+            "percentile",
+
+        ]
+
+        for col in prediction_columns:
+
+            if col in feature_df.columns:
+
+                original_df[col] = feature_df[col]
+
+
+        logger.info(
+            "Scoring Completed Successfully"
+        )
+
+
+        return original_df
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     ##########################################################
     # SCORE SINGLE PROPERTY
@@ -889,7 +1107,7 @@ class OpportunityScorer:
         df = pd.read_csv(data_path)
 
         scored = self.score_dataframe(df,include_classifier=False)
-
+                
         self.save_scored_dataset(scored)
 
         return scored

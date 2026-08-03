@@ -69,6 +69,9 @@ class PredictionResponse(BaseModel):
     """
 
     predicted_price: float
+    residual_pct: float
     opportunity_score: float
     anomaly_score: float
+    anomaly_label: int
     tier: str
+    percentile: float

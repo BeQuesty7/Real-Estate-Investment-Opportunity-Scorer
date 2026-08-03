@@ -17,7 +17,10 @@ def predict_property(property_data: dict) -> dict:
 
     return {
         "predicted_price": float(row["predicted_price"]),
+        "residual_pct": float(row["residual_pct"]) if pd.notna(row["residual_pct"]) else 0.0,
         "opportunity_score": float(row["opportunity_score"]),
         "anomaly_score": float(row["anomaly_score"]),
+        "anomaly_label": int(row["anomaly_label"]),
         "tier": str(row["tier"]),
+        "percentile": float(row["percentile"]),
     }
