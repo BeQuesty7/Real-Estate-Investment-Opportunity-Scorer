@@ -80,6 +80,11 @@ Streamlit Dashboard
 ```
 
 ---
+# Dataset
+
+Kaggle dataset Link:
+https://www.kaggle.com/datasets/adityayadav78/real-estate-dataset?utm_source=chatgpt.com
+
 
 # Machine Learning Pipeline
 
